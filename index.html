@@ -1,0 +1,570 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;0,900;1,400&family=DM+Mono:ital,wght@0,300;0,400;1,300&family=IM+Fell+English:ital@0;1&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+html,body{width:100vw;height:100vh;overflow:hidden;background:#0c0b0a;font-family:'DM Mono',monospace;color:#d4cfc8;user-select:none;}
+#bg{position:fixed;inset:0;z-index:0;}
+#bg-img{position:absolute;inset:0;background-size:cover;background-position:center;opacity:0;transition:opacity 0.6s;}
+#bg-overlay{position:absolute;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.03) 2px,rgba(0,0,0,0.03) 4px),radial-gradient(ellipse at 20% 80%,rgba(40,30,20,0.5) 0%,transparent 60%),radial-gradient(ellipse at 80% 20%,rgba(20,20,30,0.4) 0%,transparent 55%);}
+#bg-grain{position:absolute;inset:0;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='400'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='400' height='400' filter='url(%23n)' opacity='0.06'/%3E%3C/svg%3E");opacity:0.7;mix-blend-mode:overlay;}
+
+.widget{position:absolute;background:rgba(12,11,10,0.72);border:0.5px solid rgba(255,255,255,0.1);border-radius:14px;padding:16px 18px;backdrop-filter:blur(28px);-webkit-backdrop-filter:blur(28px);cursor:grab;transition:box-shadow 0.2s,border-color 0.2s;min-width:120px;min-height:60px;}
+.widget:active{cursor:grabbing;}
+.widget.dragging{box-shadow:0 20px 60px rgba(0,0,0,0.6);border-color:rgba(255,255,255,0.22);z-index:1000!important;}
+.widget::before{content:'';position:absolute;inset:0;border-radius:14px;background:linear-gradient(135deg,rgba(255,255,255,0.04) 0%,transparent 55%);pointer-events:none;}
+.widget::after{content:'⋮⋮';position:absolute;top:8px;right:10px;font-size:10px;color:rgba(255,255,255,0.1);letter-spacing:2px;pointer-events:none;}
+.wlabel{font-size:8px;letter-spacing:0.2em;color:rgba(212,207,200,0.38);text-transform:uppercase;margin-bottom:9px;}
+
+/* CLOCK */
+#w-clock{top:28px;left:28px;width:230px;}
+#ck-day{font-family:'IM Fell English',serif;font-size:14px;letter-spacing:0.18em;color:rgba(212,207,200,0.55);text-transform:uppercase;margin-bottom:2px;}
+#ck-time{font-family:'Playfair Display',serif;font-weight:900;font-size:64px;line-height:1;color:#f0ece4;letter-spacing:-3px;}
+#ck-date{font-family:'IM Fell English',serif;font-style:italic;font-size:14px;color:rgba(212,207,200,0.55);margin-top:6px;}
+
+/* SPOTIFY */
+#w-spotify{top:28px;left:290px;width:320px;}
+#sp-setup{display:flex;flex-direction:column;gap:8px;}
+#sp-setup p{font-size:11px;color:rgba(212,207,200,0.6);line-height:1.5;}
+#sp-row{display:flex;gap:7px;}
+#sp-input{flex:1;background:rgba(255,255,255,0.06);border:0.5px solid rgba(255,255,255,0.15);border-radius:8px;padding:7px 10px;font-size:10px;color:#d4cfc8;font-family:'DM Mono',monospace;outline:none;}
+#sp-input::placeholder{color:rgba(212,207,200,0.3);}
+#sp-input:focus{border-color:rgba(255,255,255,0.35);}
+#sp-go{padding:7px 14px;border-radius:8px;background:rgba(255,255,255,0.09);border:0.5px solid rgba(255,255,255,0.18);color:#f0ece4;font-size:10px;font-family:'DM Mono',monospace;cursor:pointer;white-space:nowrap;}
+#sp-go:hover{background:rgba(255,255,255,0.16);}
+#sp-hint{font-size:9px;color:rgba(212,207,200,0.3);line-height:1.6;}
+#sp-player{display:none;flex-direction:row;gap:12px;align-items:center;}
+#sp-art{width:58px;height:58px;border-radius:9px;flex-shrink:0;background:#1a1815;border:0.5px solid rgba(255,255,255,0.12);display:flex;align-items:center;justify-content:center;font-size:26px;overflow:hidden;}
+#sp-art img{width:100%;height:100%;object-fit:cover;border-radius:8px;}
+#sp-mid{flex:1;min-width:0;display:flex;flex-direction:column;gap:5px;}
+#sp-track{font-family:'Playfair Display',serif;font-size:15px;font-weight:700;color:#f0ece4;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+#sp-artist{font-size:10px;color:rgba(212,207,200,0.45);}
+#sp-prog-wrap{height:2px;background:rgba(255,255,255,0.1);border-radius:2px;}
+#sp-prog-bar{height:2px;border-radius:2px;background:rgba(255,255,255,0.7);transition:width 0.5s linear;}
+#sp-times{display:flex;justify-content:space-between;font-size:9px;color:rgba(212,207,200,0.35);}
+#sp-ctrls{display:flex;align-items:center;gap:14px;flex-shrink:0;}
+.sc{background:none;border:none;color:rgba(212,207,200,0.55);cursor:pointer;font-size:15px;padding:4px;border-radius:6px;}
+.sc:hover{color:#f0ece4;}
+#sc-play{width:36px;height:36px;border-radius:50%;background:#f0ece4;color:#111;font-size:13px;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;}
+#sc-play:hover{background:#ccc;}
+
+/* WEATHER */
+#w-weather{top:28px;right:28px;width:180px;text-align:center;}
+#wx-icon{font-size:38px;line-height:1;margin:2px 0 4px;}
+#wx-temp{font-family:'Playfair Display',serif;font-size:42px;font-weight:900;color:#f0ece4;letter-spacing:-1px;}
+#wx-unit{font-size:18px;color:rgba(212,207,200,0.4);}
+#wx-city{font-size:9px;color:rgba(212,207,200,0.4);margin-top:3px;letter-spacing:0.15em;text-transform:uppercase;}
+#wx-desc{font-family:'IM Fell English',serif;font-style:italic;font-size:12px;color:rgba(212,207,200,0.6);margin-top:2px;}
+#wx-pills{display:flex;justify-content:center;gap:6px;margin-top:8px;flex-wrap:wrap;}
+.wx-p{font-size:9px;color:rgba(212,207,200,0.4);background:rgba(255,255,255,0.05);padding:3px 8px;border-radius:20px;border:0.5px solid rgba(255,255,255,0.08);}
+
+/* IMAGE SLOTS */
+.img-widget{position:absolute;background:#111010;border:0.5px solid rgba(255,255,255,0.12);overflow:hidden;cursor:grab;transition:box-shadow 0.2s;}
+.img-widget:active{cursor:grabbing;}
+.img-widget.dragging{box-shadow:0 20px 60px rgba(0,0,0,0.7);z-index:1000!important;}
+.img-widget img{width:100%;height:100%;object-fit:cover;filter:grayscale(100%) contrast(1.08);display:block;}
+.slot-empty{width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:9px;color:rgba(212,207,200,0.25);letter-spacing:0.12em;text-transform:uppercase;gap:4px;cursor:pointer;}
+.slot-empty span{font-size:20px;opacity:0.3;}
+.slot-label{position:absolute;bottom:0;left:0;right:0;background:linear-gradient(transparent,rgba(0,0,0,0.65));font-family:'IM Fell English',serif;font-style:italic;font-size:10px;color:rgba(255,255,255,0.45);padding:16px 8px 6px;text-align:right;pointer-events:none;}
+.img-widget input[type=file]{display:none;}
+
+/* CALENDAR */
+#w-cal{bottom:28px;left:28px;width:216px;}
+#cal-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;}
+#cal-month{font-family:'Playfair Display',serif;font-size:15px;font-weight:700;color:#f0ece4;}
+.cnav{background:none;border:0.5px solid rgba(255,255,255,0.1);color:rgba(212,207,200,0.4);cursor:pointer;width:22px;height:22px;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:12px;}
+.cnav:hover{border-color:rgba(255,255,255,0.25);color:#f0ece4;}
+#cal-tbl{width:100%;border-collapse:collapse;}
+#cal-tbl th{font-size:8px;color:rgba(212,207,200,0.3);text-align:center;padding-bottom:5px;letter-spacing:0.08em;font-weight:400;}
+#cal-tbl td{text-align:center;font-size:11px;color:rgba(212,207,200,0.6);padding:3px 1px;cursor:pointer;border-radius:5px;}
+#cal-tbl td:hover{background:rgba(255,255,255,0.07);color:#f0ece4;}
+#cal-tbl td.today{background:rgba(255,255,255,0.11);color:#f0ece4;font-weight:700;}
+#cal-tbl td.period{background:rgba(170,50,70,0.28);color:rgba(255,160,175,0.9);}
+#cal-tbl td.other{color:rgba(212,207,200,0.15);}
+#cycle-mini{margin-top:10px;padding-top:10px;border-top:0.5px solid rgba(255,255,255,0.07);}
+#cy-lbl{font-size:8px;letter-spacing:0.15em;color:rgba(212,207,200,0.3);text-transform:uppercase;margin-bottom:5px;}
+#cy-bar-wrap{background:rgba(255,255,255,0.06);border-radius:3px;height:3px;}
+#cy-bar{height:3px;border-radius:3px;background:rgba(190,70,90,0.65);}
+#cy-info{display:flex;justify-content:space-between;font-size:9px;color:rgba(212,207,200,0.35);margin-top:4px;}
+#cy-log{margin-top:8px;width:100%;padding:5px;border-radius:7px;background:rgba(170,50,70,0.1);border:0.5px solid rgba(170,50,70,0.25);color:rgba(255,160,175,0.6);font-size:9px;font-family:'DM Mono',monospace;cursor:pointer;letter-spacing:0.08em;}
+#cy-log:hover{background:rgba(170,50,70,0.2);}
+#cy-log.active{background:rgba(170,50,70,0.25);color:rgba(255,180,190,0.9);}
+
+/* LYRICS */
+#w-lyric{bottom:28px;left:270px;width:200px;}
+#ly-artist{font-size:8px;letter-spacing:0.18em;color:rgba(212,207,200,0.35);text-transform:uppercase;margin-bottom:6px;}
+#ly-quote{font-family:'IM Fell English',serif;font-style:italic;font-size:13px;color:#f0ece4;line-height:1.65;}
+#ly-song{font-size:9px;color:rgba(212,207,200,0.35);margin-top:7px;}
+#ly-bar{width:20px;height:1px;background:rgba(255,255,255,0.15);margin-top:7px;}
+#ly-next{margin-top:8px;font-size:8px;color:rgba(212,207,200,0.3);cursor:pointer;letter-spacing:0.1em;text-transform:uppercase;border:none;background:none;font-family:'DM Mono',monospace;}
+#ly-next:hover{color:#f0ece4;}
+
+/* TODO */
+#w-todo{bottom:28px;right:230px;width:190px;}
+#todo-list{list-style:none;display:flex;flex-direction:column;gap:5px;max-height:130px;overflow-y:auto;}
+#todo-list::-webkit-scrollbar{width:2px;}
+#todo-list::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.1);border-radius:2px;}
+#todo-list li{display:flex;align-items:flex-start;gap:7px;font-size:11px;color:rgba(212,207,200,0.7);line-height:1.4;}
+#todo-list li input[type=checkbox]{margin-top:2px;accent-color:rgba(255,255,255,0.6);cursor:pointer;flex-shrink:0;}
+#todo-list li.done span{text-decoration:line-through;color:rgba(212,207,200,0.28);}
+#todo-add{display:flex;gap:5px;margin-top:9px;}
+#todo-inp{flex:1;background:rgba(255,255,255,0.05);border:0.5px solid rgba(255,255,255,0.1);border-radius:7px;padding:5px 9px;font-size:10px;color:#d4cfc8;font-family:'DM Mono',monospace;outline:none;}
+#todo-inp::placeholder{color:rgba(212,207,200,0.25);}
+#todo-inp:focus{border-color:rgba(255,255,255,0.28);}
+#todo-btn{padding:5px 9px;border-radius:7px;background:rgba(255,255,255,0.07);border:0.5px solid rgba(255,255,255,0.14);color:#f0ece4;font-size:13px;cursor:pointer;}
+#todo-btn:hover{background:rgba(255,255,255,0.13);}
+
+/* WALLPAPER */
+#w-wallpaper{bottom:28px;right:28px;width:190px;}
+#wp-thumb{width:46px;height:32px;border-radius:7px;background:rgba(255,255,255,0.05);border:0.5px dashed rgba(255,255,255,0.15);display:flex;align-items:center;justify-content:center;overflow:hidden;flex-shrink:0;cursor:pointer;}
+#wp-thumb img{width:100%;height:100%;object-fit:cover;}
+#wp-row{display:flex;align-items:center;gap:10px;}
+#wp-info p{font-size:10px;color:rgba(212,207,200,0.6);}
+#wp-info small{font-size:8px;color:rgba(212,207,200,0.3);}
+#wp-btn{margin-top:8px;width:100%;padding:6px;border-radius:8px;background:rgba(255,255,255,0.06);border:0.5px solid rgba(255,255,255,0.12);color:rgba(212,207,200,0.6);font-size:9px;font-family:'DM Mono',monospace;cursor:pointer;letter-spacing:0.1em;text-transform:uppercase;}
+#wp-btn:hover{background:rgba(255,255,255,0.12);color:#f0ece4;}
+#wp-file{display:none;}
+::-webkit-scrollbar{width:3px;}
+::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.1);border-radius:3px;}
+</style>
+</head>
+<body>
+<div id="bg"><div id="bg-img"></div><div id="bg-overlay"></div><div id="bg-grain"></div></div>
+
+<!-- CLOCK -->
+<div class="widget" id="w-clock" style="z-index:10;">
+  <div id="ck-day">Sunday</div>
+  <div id="ck-time">11:00</div>
+  <div id="ck-date">24th May, 2026</div>
+</div>
+
+<!-- SPOTIFY -->
+<div class="widget" id="w-spotify" style="z-index:10;">
+  <div class="wlabel">now playing</div>
+  <div id="sp-setup">
+    <p>Paste your Spotify Client ID to connect 🎵</p>
+    <div id="sp-row">
+      <input id="sp-input" type="text" placeholder="Client ID…">
+      <button id="sp-go">Connect</button>
+    </div>
+    <div id="sp-hint">developer.spotify.com → your app → Settings → Client ID<br>Redirect URI must be: https://hrithicks2007-tech.github.io/dashboard</div>
+  </div>
+  <div id="sp-player">
+    <div id="sp-art">🎵</div>
+    <div id="sp-mid">
+      <div id="sp-track">Not playing</div>
+      <div id="sp-artist">—</div>
+      <div id="sp-prog-wrap"><div id="sp-prog-bar" style="width:0%"></div></div>
+      <div id="sp-times"><span id="sp-el">0:00</span><span id="sp-tot">0:00</span></div>
+    </div>
+    <div id="sp-ctrls">
+      <button class="sc" id="sc-prev">&#9664;&#9664;</button>
+      <button id="sc-play">&#9654;</button>
+      <button class="sc" id="sc-next">&#9654;&#9654;</button>
+    </div>
+  </div>
+</div>
+
+<!-- WEATHER -->
+<div class="widget" id="w-weather" style="z-index:10;">
+  <div class="wlabel">weather</div>
+  <div id="wx-icon">⛅</div>
+  <div><span id="wx-temp">—</span><span id="wx-unit">°C</span></div>
+  <div id="wx-city">Chennai, IN</div>
+  <div id="wx-desc">loading…</div>
+  <div id="wx-pills"><span class="wx-p" id="wx-hum">—</span><span class="wx-p" id="wx-wind">—</span></div>
+</div>
+
+<!-- IMAGE SLOTS -->
+<div class="img-widget" id="img0" style="width:170px;height:130px;top:200px;left:28px;border-radius:10px;z-index:8;" onclick="document.getElementById('fi0').click()">
+  <div class="slot-empty"><span>+</span>add photo</div>
+  <div class="slot-label">i</div>
+  <input type="file" id="fi0" accept="image/*" data-slot="0">
+</div>
+<div class="img-widget" id="img1" style="width:200px;height:155px;top:160px;left:620px;border-radius:8px;z-index:8;transform:rotate(-1.5deg);" onclick="document.getElementById('fi1').click()">
+  <div class="slot-empty"><span>+</span>add photo</div>
+  <div class="slot-label">ii</div>
+  <input type="file" id="fi1" accept="image/*" data-slot="1">
+</div>
+<div class="img-widget" id="img2" style="width:155px;height:120px;top:330px;left:480px;border-radius:10px;z-index:9;transform:rotate(1deg);" onclick="document.getElementById('fi2').click()">
+  <div class="slot-empty"><span>+</span>add photo</div>
+  <div class="slot-label">iii</div>
+  <input type="file" id="fi2" accept="image/*" data-slot="2">
+</div>
+<div class="img-widget" id="img3" style="width:180px;height:140px;top:240px;right:220px;border-radius:9px;z-index:8;transform:rotate(0.8deg);" onclick="document.getElementById('fi3').click()">
+  <div class="slot-empty"><span>+</span>add photo</div>
+  <div class="slot-label">iv</div>
+  <input type="file" id="fi3" accept="image/*" data-slot="3">
+</div>
+
+<!-- CALENDAR -->
+<div class="widget" id="w-cal" style="z-index:10;">
+  <div id="cal-hdr">
+    <button class="cnav" id="cal-prev">&#8249;</button>
+    <div id="cal-month">May 2026</div>
+    <button class="cnav" id="cal-next">&#8250;</button>
+  </div>
+  <table id="cal-tbl">
+    <thead><tr><th>Mo</th><th>Tu</th><th>We</th><th>Th</th><th>Fr</th><th>Sa</th><th>Su</th></tr></thead>
+    <tbody id="cal-body"></tbody>
+  </table>
+  <div id="cycle-mini">
+    <div id="cy-lbl">cycle tracker</div>
+    <div id="cy-bar-wrap"><div id="cy-bar" style="width:57%"></div></div>
+    <div id="cy-info"><span>Day <span id="cy-day">16</span>/28</span><span>Next in <span id="cy-next">12</span>d</span><span id="cy-phase">Luteal</span></div>
+    <button id="cy-log">+ log period day</button>
+  </div>
+</div>
+
+<!-- LYRICS -->
+<div class="widget" id="w-lyric" style="z-index:10;">
+  <div class="wlabel">lyrics</div>
+  <div id="ly-artist">Harry Styles</div>
+  <div id="ly-quote">"Tastes like strawberries<br>on a summer evening."</div>
+  <div id="ly-song">— Watermelon Sugar</div>
+  <div id="ly-bar"></div>
+  <button id="ly-next">next →</button>
+</div>
+
+<!-- TODO -->
+<div class="widget" id="w-todo" style="z-index:10;">
+  <div class="wlabel">to — do</div>
+  <ul id="todo-list"></ul>
+  <div id="todo-add">
+    <input id="todo-inp" type="text" placeholder="add a task…">
+    <button id="todo-btn">+</button>
+  </div>
+</div>
+
+<!-- WALLPAPER -->
+<div class="widget" id="w-wallpaper" style="z-index:10;">
+  <div class="wlabel">wallpaper</div>
+  <div id="wp-row">
+    <div id="wp-thumb" onclick="document.getElementById('wp-file').click()">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.25)" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>
+    </div>
+    <div id="wp-info"><p>Wallpaper</p><small>Upload your image</small></div>
+  </div>
+  <button id="wp-btn" onclick="document.getElementById('wp-file').click()">Upload image</button>
+  <input type="file" id="wp-file" accept="image/*">
+</div>
+
+<script>
+// ── DRAG ──
+let topZ=20;
+function makeDraggable(el){
+  let ox=0,oy=0,dragging=false;
+  el.addEventListener('mousedown',e=>{
+    if(['INPUT','BUTTON','SELECT','TEXTAREA'].includes(e.target.tagName))return;
+    dragging=true;el.classList.add('dragging');
+    topZ++;el.style.zIndex=topZ;
+    const r=el.getBoundingClientRect();
+    ox=e.clientX-r.left;oy=e.clientY-r.top;
+    e.preventDefault();
+  });
+  document.addEventListener('mousemove',e=>{
+    if(!dragging)return;
+    let nx=e.clientX-ox,ny=e.clientY-oy;
+    nx=Math.max(0,Math.min(window.innerWidth-el.offsetWidth,nx));
+    ny=Math.max(0,Math.min(window.innerHeight-el.offsetHeight,ny));
+    el.style.left=nx+'px';el.style.top=ny+'px';
+    el.style.right='';el.style.bottom='';
+  });
+  document.addEventListener('mouseup',()=>{
+    if(!dragging)return;
+    dragging=false;el.classList.remove('dragging');savePos();
+  });
+}
+document.querySelectorAll('.widget,.img-widget').forEach(makeDraggable);
+
+function savePos(){
+  const p={};
+  document.querySelectorAll('.widget,.img-widget').forEach(el=>{
+    const r=el.getBoundingClientRect();
+    p[el.id]={left:r.left,top:r.top};
+  });
+  localStorage.setItem('wpos',JSON.stringify(p));
+}
+function restorePos(){
+  const p=JSON.parse(localStorage.getItem('wpos')||'{}');
+  document.querySelectorAll('.widget,.img-widget').forEach(el=>{
+    if(p[el.id]){el.style.left=p[el.id].left+'px';el.style.top=p[el.id].top+'px';el.style.right='';el.style.bottom='';}
+  });
+}
+restorePos();
+
+// ── CLOCK ──
+const DAYS=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+const MONS=['January','February','March','April','May','June','July','August','September','October','November','December'];
+function ord(n){const s=['th','st','nd','rd'],v=n%100;return n+(s[(v-20)%10]||s[v]||s[0]);}
+function tick(){
+  const n=new Date();
+  document.getElementById('ck-day').textContent=DAYS[n.getDay()].toUpperCase();
+  document.getElementById('ck-time').textContent=String(n.getHours()).padStart(2,'0')+':'+String(n.getMinutes()).padStart(2,'0');
+  document.getElementById('ck-date').textContent=ord(n.getDate())+' '+MONS[n.getMonth()]+', '+n.getFullYear();
+}
+setInterval(tick,1000);tick();
+
+// ── CALENDAR ──
+let cY=2026,cM=4;
+let periodDays=JSON.parse(localStorage.getItem('period_days')||'[]');
+function dateKey(y,m,d){return y+'-'+String(m+1).padStart(2,'0')+'-'+String(d).padStart(2,'0');}
+function buildCal(){
+  document.getElementById('cal-month').textContent=MONS[cM]+' '+cY;
+  const body=document.getElementById('cal-body');body.innerHTML='';
+  const fd=new Date(cY,cM,1).getDay();const off=fd===0?6:fd-1;
+  const dim=new Date(cY,cM+1,0).getDate();const dip=new Date(cY,cM,0).getDate();
+  const today=new Date();let day=1-off;
+  for(let r=0;r<6;r++){
+    let any=false;const tr=document.createElement('tr');
+    for(let c=0;c<7;c++){
+      const td=document.createElement('td');const d=day;
+      if(d<1){td.textContent=dip+d;td.className='other';}
+      else if(d>dim){td.textContent=d-dim;td.className='other';}
+      else{
+        td.textContent=d;any=true;
+        const isT=d===today.getDate()&&cM===today.getMonth()&&cY===today.getFullYear();
+        const key=dateKey(cY,cM,d);
+        const isP=periodDays.includes(key);
+        td.className=(isT?'today':'')+(isP?' period':'');
+        td.onclick=()=>{
+          const k=dateKey(cY,cM,d);
+          const idx=periodDays.indexOf(k);
+          if(idx>=0)periodDays.splice(idx,1);else periodDays.push(k);
+          localStorage.setItem('period_days',JSON.stringify(periodDays));
+          buildCal();
+        };
+      }
+      tr.appendChild(td);day++;
+    }
+    if(any||r<4)body.appendChild(tr);
+  }
+}
+document.getElementById('cal-prev').onclick=()=>{cM--;if(cM<0){cM=11;cY--;}buildCal();};
+document.getElementById('cal-next').onclick=()=>{cM++;if(cM>11){cM=0;cY++;}buildCal();};
+buildCal();
+
+let cyLogged=false;
+document.getElementById('cy-log').onclick=function(){
+  const today=new Date();const k=dateKey(today.getFullYear(),today.getMonth(),today.getDate());
+  const idx=periodDays.indexOf(k);
+  if(idx>=0){periodDays.splice(idx,1);cyLogged=false;}
+  else{periodDays.push(k);cyLogged=true;}
+  localStorage.setItem('period_days',JSON.stringify(periodDays));
+  this.classList.toggle('active',cyLogged);
+  this.textContent=cyLogged?'✓ logged today':'+ log period day';
+  buildCal();
+};
+
+// ── LYRICS ──
+const LYRICS=[
+  {a:'Harry Styles',l:'"Tastes like strawberries\non a summer evening."',s:'— Watermelon Sugar'},
+  {a:'Harry Styles',l:'"Daylight, I wake up feeling\nlike you won\'t play right."',s:'— Daylight'},
+  {a:'Harry Styles',l:'"We don\'t talk about it,\nit\'s something we don\'t do."',s:'— Matilda'},
+  {a:'One Direction',l:'"You don\'t know you\'re beautiful,\nthat\'s what makes you beautiful."',s:'— What Makes You Beautiful'},
+  {a:'One Direction',l:'"Baby you light up my world\nlike nobody else."',s:'— What Makes You Beautiful'},
+  {a:'One Direction',l:'"I\'ve tried playing it cool,\nbut when I\'m looking at you."',s:'— One Thing'},
+  {a:'Taylor Swift',l:'"Long story short,\nI survived."',s:'— Long Story Short'},
+  {a:'Taylor Swift',l:'"I had the time of my life\nfighting dragons with you."',s:'— Long Live'},
+  {a:'Taylor Swift',l:'"She lost him but she found herself\nand somehow that was everything."',s:'— Clean'},
+  {a:'Chase Atlantic',l:'"I don\'t need you to tell me\nI\'m doing fine."',s:'— Swim'},
+  {a:'Chase Atlantic',l:'"You\'ve got too much to lose,\nbut you\'re playing my game."',s:'— Okay'},
+  {a:'Chase Atlantic',l:'"I keep on falling apart\nand picking it up again."',s:'— Into It'},
+  {a:'The Vamps',l:'"Can we dance to this beat\nuntil the morning light?"',s:'— Can We Dance'},
+  {a:'5 Seconds of Summer',l:'"I\'ve been reading books of old,\nthe legends and the myths."',s:'— Youngblood'},
+  {a:'5 Seconds of Summer',l:'"Who\'s gonna walk you through\nthe dark side of the morning?"',s:'— Amnesia'},
+  {a:'ATEEZ',l:'"We are the future,\nwe are the eight outlaws."',s:'— Outlaw'},
+  {a:'ATEEZ',l:'"I\'m a firework born from the dark,\nnever surrender."',s:'— Fireworks'},
+];
+let lyIdx=Math.floor(Math.random()*LYRICS.length);
+function showLyric(){
+  const l=LYRICS[lyIdx];
+  document.getElementById('ly-artist').textContent=l.a;
+  document.getElementById('ly-quote').innerHTML=l.l.replace(/\n/g,'<br>');
+  document.getElementById('ly-song').textContent=l.s;
+}
+document.getElementById('ly-next').onclick=()=>{lyIdx=(lyIdx+1)%LYRICS.length;showLyric();};
+setInterval(()=>{lyIdx=(lyIdx+1)%LYRICS.length;showLyric();},30000);
+showLyric();
+
+// ── TODO ──
+let todos=JSON.parse(localStorage.getItem('todos')||'[]');
+function saveTodos(){localStorage.setItem('todos',JSON.stringify(todos));}
+function renderTodos(){
+  const ul=document.getElementById('todo-list');ul.innerHTML='';
+  todos.forEach((t,i)=>{
+    const li=document.createElement('li');if(t.done)li.className='done';
+    const cb=document.createElement('input');cb.type='checkbox';cb.checked=t.done;
+    cb.onchange=()=>{todos[i].done=cb.checked;saveTodos();renderTodos();};
+    const sp=document.createElement('span');sp.textContent=t.text;
+    li.append(cb,sp);ul.appendChild(li);
+  });
+}
+document.getElementById('todo-btn').onclick=()=>{
+  const v=document.getElementById('todo-inp').value.trim();
+  if(!v)return;todos.push({text:v,done:false});
+  document.getElementById('todo-inp').value='';
+  saveTodos();renderTodos();
+};
+document.getElementById('todo-inp').onkeydown=e=>{if(e.key==='Enter')document.getElementById('todo-btn').click();};
+renderTodos();
+
+// ── IMAGE SLOTS ──
+const slotData=JSON.parse(localStorage.getItem('collage')||'{}');
+function setSlot(i,url){
+  const el=document.getElementById('img'+i);
+  slotData[i]=url;localStorage.setItem('collage',JSON.stringify(slotData));
+  el.innerHTML='<img src="'+url+'" alt="photo"><div class="slot-label">'+['i','ii','iii','iv'][i]+'</div><input type="file" id="fi'+i+'" accept="image/*" data-slot="'+i+'">';
+  el.querySelector('input').addEventListener('change',handleFile);
+  el.onclick=()=>el.querySelector('input').click();
+}
+function handleFile(e){
+  const i=parseInt(this.dataset.slot);const file=e.target.files[0];if(!file)return;
+  const r=new FileReader();
+  r.onload=ev=>setSlot(i,ev.target.result);
+  r.readAsDataURL(file);
+}
+[0,1,2,3].forEach(i=>{
+  if(slotData[i])setSlot(i,slotData[i]);
+  else{const f=document.getElementById('fi'+i);if(f)f.addEventListener('change',handleFile);}
+});
+
+// ── WALLPAPER ──
+const savedWp=localStorage.getItem('wp');
+if(savedWp){
+  document.getElementById('bg-img').style.backgroundImage='url('+savedWp+')';
+  document.getElementById('bg-img').style.opacity='1';
+  document.getElementById('wp-thumb').innerHTML='<img src="'+savedWp+'" alt="wp">';
+}
+document.getElementById('wp-file').onchange=function(e){
+  const file=e.target.files[0];if(!file)return;
+  const r=new FileReader();
+  r.onload=ev=>{
+    const url=ev.target.result;
+    document.getElementById('bg-img').style.backgroundImage='url('+url+')';
+    document.getElementById('bg-img').style.opacity='1';
+    document.getElementById('wp-thumb').innerHTML='<img src="'+url+'" alt="wp">';
+    localStorage.setItem('wp',url);
+  };
+  r.readAsDataURL(file);
+};
+
+// ── WEATHER ──
+async function fetchWeather(){
+  try{
+    const r=await fetch('https://api.open-meteo.com/v1/forecast?latitude=13.08&longitude=80.27&current_weather=true&hourly=relativehumidity_2m,windspeed_10m&timezone=Asia/Kolkata');
+    const d=await r.json();const w=d.current_weather;
+    const icons={0:'☀️',1:'🌤️',2:'⛅',3:'☁️',45:'🌫️',51:'🌦️',61:'🌧️',80:'🌦️',95:'⛈️'};
+    const descs={0:'Clear sky',1:'Mostly clear',2:'Partly cloudy',3:'Overcast',45:'Foggy',51:'Drizzle',61:'Rain',80:'Showers',95:'Thunderstorm'};
+    document.getElementById('wx-temp').textContent=Math.round(w.temperature);
+    document.getElementById('wx-icon').textContent=icons[w.weathercode]||'🌡️';
+    document.getElementById('wx-desc').textContent=descs[w.weathercode]||'—';
+    const now=new Date().toISOString().slice(0,13);
+    const idx=d.hourly.time.findIndex(t=>t.startsWith(now));
+    if(idx>=0){
+      document.getElementById('wx-hum').textContent='💧 '+d.hourly.relativehumidity_2m[idx]+'%';
+      document.getElementById('wx-wind').textContent='💨 '+Math.round(d.hourly.windspeed_10m[idx])+'km/h';
+    }
+  }catch(e){document.getElementById('wx-desc').textContent='offline';}
+}
+fetchWeather();setInterval(fetchWeather,600000);
+
+// ── SPOTIFY PKCE ──
+const REDIRECT='https://hrithicks2007-tech.github.io/dashboard';
+let spToken=localStorage.getItem('sp_tok')||'';
+let spPlayer=null;
+
+function fmtMs(ms){const s=Math.floor(ms/1000);return Math.floor(s/60)+':'+String(s%60).padStart(2,'0');}
+
+function showSpPlayer(){
+  document.getElementById('sp-setup').style.display='none';
+  document.getElementById('sp-player').style.display='flex';
+}
+
+async function genPKCE(){
+  const arr=new Uint8Array(32);crypto.getRandomValues(arr);
+  const verifier=Array.from(arr).map(b=>('0'+b.toString(16)).slice(-2)).join('');
+  const data=new TextEncoder().encode(verifier);
+  const digest=await crypto.subtle.digest('SHA-256',data);
+  const challenge=btoa(String.fromCharCode(...new Uint8Array(digest))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+  return{verifier,challenge};
+}
+
+// handle redirect back from spotify
+(async()=>{
+  const params=new URLSearchParams(window.location.search);
+  const code=params.get('code');
+  if(code){
+    window.history.replaceState({},'',window.location.pathname);
+    const cid=localStorage.getItem('sp_cid');
+    const verifier=localStorage.getItem('sp_verifier');
+    try{
+      const res=await fetch('https://accounts.spotify.com/api/token',{
+        method:'POST',
+        headers:{'Content-Type':'application/x-www-form-urlencoded'},
+        body:new URLSearchParams({grant_type:'authorization_code',code,redirect_uri:REDIRECT,client_id:cid,code_verifier:verifier})
+      });
+      const d=await res.json();
+      if(d.access_token){
+        spToken=d.access_token;
+        localStorage.setItem('sp_tok',d.access_token);
+        if(d.refresh_token)localStorage.setItem('sp_refresh',d.refresh_token);
+        initSDK();
+      } else {
+        alert('Spotify error: '+JSON.stringify(d));
+      }
+    }catch(e){alert('Error: '+e.message);}
+  }
+})();
+
+document.getElementById('sp-input').value=localStorage.getItem('sp_cid')||'';
+
+document.getElementById('sp-go').onclick=async()=>{
+  const cid=document.getElementById('sp-input').value.trim();
+  if(!cid){alert('Paste your Client ID first!');return;}
+  localStorage.setItem('sp_cid',cid);
+  const{verifier,challenge}=await genPKCE();
+  localStorage.setItem('sp_verifier',verifier);
+  const scopes='streaming user-read-email user-read-private user-read-playback-state user-modify-playback-state';
+  window.location.href='https://accounts.spotify.com/authorize?'+new URLSearchParams({client_id:cid,response_type:'code',redirect_uri:REDIRECT,scope:scopes,code_challenge_method:'S256',code_challenge:challenge});
+};
+
+function initSDK(){
+  if(!spToken||document.getElementById('sp-sdk'))return;
+  const s=document.createElement('script');
+  s.id='sp-sdk';s.src='https://sdk.scdn.co/spotify-player.js';
+  document.body.appendChild(s);
+  window.onSpotifyWebPlaybackSDKReady=()=>{
+    spPlayer=new Spotify.Player({name:'OUTLAW Dashboard 🖤',getOAuthToken:cb=>cb(spToken),volume:0.7});
+    spPlayer.addListener('ready',({device_id})=>{
+      fetch('https://api.spotify.com/v1/me/player',{method:'PUT',headers:{'Authorization':'Bearer '+spToken,'Content-Type':'application/json'},body:JSON.stringify({device_ids:[device_id],play:false})});
+      showSpPlayer();
+    });
+    spPlayer.addListener('player_state_changed',state=>{
+      if(!state)return;
+      const t=state.track_window.current_track;
+      document.getElementById('sp-track').textContent=t.name;
+      document.getElementById('sp-artist').textContent=t.artists.map(a=>a.name).join(', ');
+      const art=t.album.images[0]?.url;
+      if(art)document.getElementById('sp-art').innerHTML='<img src="'+art+'" alt="art">';
+      document.getElementById('sp-prog-bar').style.width=Math.round((state.position/state.duration)*100)+'%';
+      document.getElementById('sp-el').textContent=fmtMs(state.position);
+      document.getElementById('sp-tot').textContent=fmtMs(state.duration);
+      document.getElementById('sc-play').innerHTML=state.paused?'&#9654;':'&#9646;&#9646;';
+    });
+    spPlayer.addListener('authentication_error',()=>{localStorage.removeItem('sp_tok');alert('Spotify session expired! Reconnect.');});
+    spPlayer.connect();
+  };
+}
+
+document.getElementById('sc-prev').onclick=()=>spPlayer&&spPlayer.previousTrack();
+document.getElementById('sc-play').onclick=()=>spPlayer&&spPlayer.togglePlay();
+document.getElementById('sc-next').onclick=()=>spPlayer&&spPlayer.nextTrack();
+
+if(spToken){initSDK();showSpPlayer();}
+</script>
+</body>
+</html>
